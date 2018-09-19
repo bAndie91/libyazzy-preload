@@ -82,7 +82,8 @@ int unlinkat(int dirfd, const char *pathname, int flags)
 					warnx("RECYCLER %s", recycler);
 					#endif
 					
-					sz_min = sz_max = 0;
+					sz_min = 1;  // ignore empty files by default
+					sz_max = 0;  // no upper size limit by default
 					excluded = false;
 					
 					/* Reading options for this Recycle Bin */
@@ -194,7 +195,7 @@ int unlinkat(int dirfd, const char *pathname, int flags)
 						{
 							/* File size exceeds limit */
 							#ifdef DEBUG
-							warnx("filesize: %lu < %lu || %lu > %lu (0 means infinity)", st1.st_size, sz_min, st1.st_size, sz_max);
+							warnx("filesize %lu, min %lu, max %lu (0=infinite)", st1.st_size, sz_min, sz_max);
 							#endif
 						}
 						else if(excluded)
