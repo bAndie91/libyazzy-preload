@@ -1,4 +1,6 @@
 
+// see flow chart: https://github.com/bAndie91/libyazzy-preload/blob/master/recyclix-flow.svg
+
 #include <sys/stat.h>
 #include <bits/posix1_lim.h>
 #include <fcntl.h>
