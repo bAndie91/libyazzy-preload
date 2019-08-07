@@ -1,5 +1,5 @@
 
-all: lnbuf forcebindip getenv pathrewrite recyclix cupsgetpass
+all: lnbuf forcebindip getenv pathrewrite recyclix cupsgetpass ip_dscp
 
 
 lnbuf:
@@ -47,3 +47,7 @@ xdev:
 	strip $@.so
 	chmod 0644 $@.so
 
+ip_dscp:
+	gcc $(CCFLAGS) $@.c -fPIC -shared -ldl -D_GNU_SOURCE -o $@.so
+	strip $@.so
+	chmod 0633 $@.so
