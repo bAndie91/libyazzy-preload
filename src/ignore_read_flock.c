@@ -1,5 +1,5 @@
 /*
- * gcc -ldl -D _GNU_SOURCE -shared -fPIC -o ignore_read_lock.so ignore_read_lock.c
+ * gcc -ldl -D _GNU_SOURCE -shared -fPIC -o ignore_read_flock.so ignore_read_flock.c
  *
  */
 
