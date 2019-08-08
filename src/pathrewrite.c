@@ -45,8 +45,8 @@ int __xstat(int ver, const char *path, struct stat *buf)
 	
 	pathrewrite_rewrite(path, pathrw, __func__);
 	
-        int (*orig___xstat)(int, const char *, struct stat *) = dlsym(RTLD_NEXT, "__xstat");
-        return orig___xstat(ver, pathrw, buf);
+	int (*orig___xstat)(int, const char *, struct stat *) = dlsym(RTLD_NEXT, "__xstat");
+	return orig___xstat(ver, pathrw, buf);
 }
 
 int __lxstat(int ver, const char *path, struct stat *buf)
@@ -55,10 +55,9 @@ int __lxstat(int ver, const char *path, struct stat *buf)
 	
 	pathrewrite_rewrite(path, pathrw, __func__);
 	
-        int (*orig___lxstat)(int, const char *, struct stat *) = dlsym(RTLD_NEXT, "__lxstat");
-        return orig___lxstat(ver, pathrw, buf);
+	int (*orig___lxstat)(int, const char *, struct stat *) = dlsym(RTLD_NEXT, "__lxstat");
+	return orig___lxstat(ver, pathrw, buf);
 }
-
 
 int open(const char *pathname, int flags, mode_t mode)
 {
@@ -66,8 +65,28 @@ int open(const char *pathname, int flags, mode_t mode)
 
 	pathrewrite_rewrite(pathname, pathrw, __func__);
 	
-        int (*orig_open)(const char *, int, mode_t) = dlsym(RTLD_NEXT, "open");
-        return orig_open(pathrw, flags, mode);
+	int (*orig_open)(const char *, int, mode_t) = dlsym(RTLD_NEXT, "open");
+	return orig_open(pathrw, flags, mode);
+}
+
+int open64(const char *pathname, int flags, mode_t mode)
+{
+	char pathrw[_POSIX_PATH_MAX];
+
+	pathrewrite_rewrite(pathname, pathrw, __func__);
+
+	int (*orig_open64)(const char *, int, mode_t) = dlsym(RTLD_NEXT, "open64");
+	return orig_open64(pathrw, flags, mode);
+}
+
+int __open_2(const char* pathname, int flags)
+{
+	char pathrw[_POSIX_PATH_MAX];
+
+	pathrewrite_rewrite(pathname, pathrw, __func__);
+
+	int (*orig___open_2)(const char *, int) = dlsym(RTLD_NEXT, "__open_2");
+	return orig___open_2(pathrw, flags);
 }
 
 FILE *fopen(__const char *__restrict pathname, __const char *__restrict mode)
@@ -76,7 +95,6 @@ FILE *fopen(__const char *__restrict pathname, __const char *__restrict mode)
 
 	pathrewrite_rewrite(pathname, pathrw, __func__);
 	
-        FILE *(*orig_fopen)(__const char *__restrict, __const char *__restrict) = dlsym(RTLD_NEXT, "fopen");
-        return orig_fopen(pathrw, mode);
+	FILE *(*orig_fopen)(__const char *__restrict, __const char *__restrict) = dlsym(RTLD_NEXT, "fopen");
+	return orig_fopen(pathrw, mode);
 }
-
