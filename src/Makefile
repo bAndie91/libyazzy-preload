@@ -51,3 +51,13 @@ ip_dscp:
 	gcc $(CCFLAGS) $@.c -fPIC -shared -ldl -D_GNU_SOURCE -o $@.so
 	strip $@.so
 	chmod 0633 $@.so
+
+nofail_setfacl:
+	gcc $(CCFLAGS) -D_GNU_SOURCE -shared -fPIC $@.c -o $@.so
+	strip $@.so
+	chmod -x $@.so
+
+ignore_read_flock:
+	gcc $(CCFLAGS) -ldl -D_GNU_SOURCE -shared -fPIC $@.c -o $@.so
+	strip $@.so
+	chmod -x $@.so
