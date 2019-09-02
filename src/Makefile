@@ -61,3 +61,8 @@ ignore_read_flock:
 	gcc $(CCFLAGS) -ldl -D_GNU_SOURCE -shared -fPIC $@.c -o $@.so
 	strip $@.so
 	chmod -x $@.so
+
+openhelper:
+	gcc $(CCFLAGS) -ldl -D_GNU_SOURCE -shared -fPIC $@.c -o $@.so
+	strip $@.so
+	chmod -x $@.so

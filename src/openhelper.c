@@ -12,7 +12,14 @@
 
 #define MYNAME "openhelper.so"
 
-int openhelper(const char* requested_path, int* resulted_fd)
+
+FILE* real_fopen(__const char *__restrict pathname, __const char *__restrict mode)
+{
+	FILE *(*the_real_fopen)(__const char *__restrict, __const char *__restrict) = dlsym(RTLD_NEXT, "fopen");
+	return the_real_fopen(pathname, mode);
+}
+
+int openhelper(const char* requested_path, FILE** resulted_fh)
 {
 	/**
 	 * return 0 or -1
@@ -25,13 +32,12 @@ int openhelper(const char* requested_path, int* resulted_fd)
 	FILE *tmpf;
 	pid_t child;
 	
-	*resulted_fd = -1;
+	*resulted_fh = NULL;
 	only_pattern = getenv("OPENHELPER_FNMATCH");
 	helper_command = getenv("OPENHELPER_COMMAND");
 	
 	if(helper_command == NULL)
 	{
-		fprintf(stderr, "%s: not set: OPENHELPER_COMMAND\n", MYNAME);
 		return 0;
 	}
 	if(only_pattern == NULL)
@@ -64,13 +70,14 @@ int openhelper(const char* requested_path, int* resulted_fd)
 		close(fileno(stdin));
 		close(fileno(stdout));
 		sprintf(tmpfn, "/dev/fd/%d", fileno(tmpf));
-		tmpf2 = fopen(tmpfn, "w+");
+		tmpf2 = real_fopen(tmpfn, "w+");
 		if(tmpf2 == NULL)
 		{
 			fprintf(stderr, "%s: reopen temp file: %s\n", MYNAME, strerror(errno));
 			_exit(errno);
 		}
 		dup2(fileno(tmpf2), fileno(stdout));
+		unsetenv("OPENHELPER_COMMAND");
 		setenv("OPENHELPER_FILE", requested_path, 1);
 		execvp("sh", args);
 		_exit(127);
@@ -89,7 +96,7 @@ int openhelper(const char* requested_path, int* resulted_fd)
 		if (WIFEXITED(status)) {
 			if(WEXITSTATUS(status) == 0)
 			{
-				*resulted_fd = fileno(tmpf);
+				*resulted_fh = tmpf;
 				return 0;
 			}
 			fprintf(stderr, "%s: helper command exited %d: %s\n", MYNAME, WEXITSTATUS(status), strerror(WEXITSTATUS(status)));
@@ -109,28 +116,55 @@ int openhelper(const char* requested_path, int* resulted_fd)
 
 int open(const char *pathname, int flags, mode_t mode)
 {
-	int replacement_fd;
+	FILE* replacement_fh;
 	
-	if(openhelper(pathname, &replacement_fd) != 0) return -1;
-	if(replacement_fd != -1)
+	if(openhelper(pathname, &replacement_fh) != 0) return -1;
+	if(replacement_fh != NULL)
 	{
-		return replacement_fd;
+		return fileno(replacement_fh);
 	}
 
-	int (*orig_open)(const char *, int, mode_t) = dlsym(RTLD_NEXT, __func__);
-	return orig_open(pathname, flags, mode);
+	int (*real_open)(const char *, int, mode_t) = dlsym(RTLD_NEXT, __func__);
+	return real_open(pathname, flags, mode);
 }
 
 int open64(const char *pathname, int flags, mode_t mode)
 {
-	int replacement_fd;
+	FILE* replacement_fh;
 	
-	if(openhelper(pathname, &replacement_fd) != 0) return -1;
-	if(replacement_fd != -1)
+	if(openhelper(pathname, &replacement_fh) != 0) return -1;
+	if(replacement_fh != NULL)
 	{
-		return replacement_fd;
+		return fileno(replacement_fh);
 	}
 
-	int (*orig_open64)(const char *, int, mode_t) = dlsym(RTLD_NEXT, __func__);
-	return orig_open64(pathname, flags, mode);
+	int (*real_open64)(const char *, int, mode_t) = dlsym(RTLD_NEXT, __func__);
+	return real_open64(pathname, flags, mode);
+}
+
+FILE* fopen(__const char *__restrict pathname, __const char *__restrict mode)
+{
+	FILE* replacement_fh;
+	
+	if(openhelper(pathname, &replacement_fh) != 0) return NULL;
+	if(replacement_fh != NULL)
+	{
+		return replacement_fh;
+	}
+
+	return real_fopen(pathname, mode);
+}
+
+FILE* fopen64(__const char *__restrict pathname, __const char *__restrict mode)
+{
+	FILE* replacement_fh;
+	
+	if(openhelper(pathname, &replacement_fh) != 0) return NULL;
+	if(replacement_fh != NULL)
+	{
+		return replacement_fh;
+	}
+
+	FILE *(*real_fopen64)(__const char *__restrict, __const char *__restrict) = dlsym(RTLD_NEXT, __func__);
+	return real_fopen64(pathname, mode);
 }
