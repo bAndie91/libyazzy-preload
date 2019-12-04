@@ -50,7 +50,12 @@ xdev:
 ip_dscp:
 	gcc $(CCFLAGS) $@.c -fPIC -shared -ldl -D_GNU_SOURCE -o $@.so
 	strip $@.so
-	chmod 0633 $@.so
+	chmod 0644 $@.so
+
+uds_chmod:
+	gcc $(CCFLAGS) $@.c -fPIC -shared -ldl -D_GNU_SOURCE -o $@.so
+	strip $@.so
+	chmod 0644 $@.so
 
 nofail_setfacl:
 	gcc $(CCFLAGS) -D_GNU_SOURCE -shared -fPIC $@.c -o $@.so
