@@ -39,16 +39,6 @@ void pathrewrite_rewrite(const char *orig, char *rw, const char *caller_name)
 }
 
 
-int __xstat(int ver, const char *path, struct stat *buf)
-{
-	char pathrw[_POSIX_PATH_MAX];
-	
-	pathrewrite_rewrite(path, pathrw, __func__);
-	
-	int (*orig___xstat)(int, const char *, struct stat *) = dlsym(RTLD_NEXT, "__xstat");
-	return orig___xstat(ver, pathrw, buf);
-}
-
 int __lxstat(int ver, const char *path, struct stat *buf)
 {
 	char pathrw[_POSIX_PATH_MAX];
@@ -78,6 +68,13 @@ int open64(const char *pathname, int flags, mode_t mode)
 	int (*orig_open64)(const char *, int, mode_t) = dlsym(RTLD_NEXT, "open64");
 	return orig_open64(pathrw, flags, mode);
 }
+
+int creat()
+ssize_t readlink()
+int __open64_2()
+int __lxstat64()
+// perhaps not needed // int execve()
+
 
 int __open_2(const char* pathname, int flags)
 {
