@@ -193,7 +193,8 @@ int unlinkat(int dirfd, const char *pathname, int flags)
 							warnx("xdev: %03u,%03u (looking for %03u,%03u)", major(st2.st_dev), minor(st2.st_dev), major(st1.st_dev), minor(st1.st_dev));
 							#endif
 						}
-						else if(st1.st_size < sz_min || (sz_max != 0 && st1.st_size > sz_max))
+						else if(S_ISREG(st1.st_mode) /* treating directory, symlink, and other non-regular files sizeless */ &&
+						        (st1.st_size < sz_min || (sz_max != 0 && st1.st_size > sz_max)))
 						{
 							/* File size exceeds limit */
 							#ifdef DEBUG
