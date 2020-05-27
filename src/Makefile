@@ -1,73 +1,72 @@
 
-all: lnbuf forcebindip getenv pathrewrite recyclix cupsgetpass ip_dscp
+all: lnbuf forcebindip getenv pathrewrite recyclix cupsgetpass ip_dscp ld_env_restore
 
 
-lnbuf:
-	gcc $(CCFLAGS) -Wall -fPIC -s -include stdio.h -x c $@.c -shared -o $@.so
-	strip $@.so
-	chmod -x $@.so
+lnbuf.so:
+	gcc $(CCFLAGS) -Wall -fPIC -s -include stdio.h -x c $(basename $@).c -shared -o $@
+	strip $@
+	chmod -x $@
 
-forcebindip:
-	gcc $(CCFLAGS) -Wall -fPIC -D _GNU_SOURCE -shared $@.c -o $@.so
-	strip $@.so
-	chmod -x $@.so
+forcebindip.so:
+	gcc $(CCFLAGS) -Wall -fPIC -D _GNU_SOURCE -shared $(basename $@).c -o $@
+	strip $@
+	chmod -x $@
 
-getenv:
-	gcc $(CCFLAGS) -Wall -fPIC -D _GNU_SOURCE -O0 -ldl -shared $@.c -o $@.so
-	strip $@.so
-	chmod -x $@.so
+getenv.so:
+	gcc $(CCFLAGS) -Wall -fPIC -D _GNU_SOURCE -O0 -ldl -shared $(basename $@).c -o $@
+	strip $@
+	chmod -x $@
 
-saveunlinedinode:
-	gcc -D _GNU_SOURCE -O0 -ldl -shared $@.c -o $@.so
-	strip $@.so
-	chmod -x $@.so
+saveunlinedinode.so:
+	gcc -D _GNU_SOURCE -O0 -ldl -shared $(basename $@).c -o $@
+	strip $@
+	chmod -x $@
 
-pathrewrite:
-	gcc -D _GNU_SOURCE -O0 -ldl -shared $@.c -o $@.so
-	strip $@.so
-	chmod -x $@.so
+pathrewrite.so:
+	gcc -D _GNU_SOURCE -O0 -ldl -shared $(basename $@).c -o $@
+	strip $@
+	chmod -x $@
 
-recyclix:
-	gcc $(CCFLAGS) -Wall -fPIC -D _GNU_SOURCE -O0 -ldl -shared $@.c -o $@.so
-	strip $@.so
-	chmod -x $@.so
+recyclix.so:
+	gcc $(CCFLAGS) -Wall -fPIC -D _GNU_SOURCE -O0 -ldl -shared $(basename $@).c -o $@
+	strip $@
+	chmod -x $@
 
-recyclix-dbg:
-	gcc -D DEBUG $(CCFLAGS) -Wall -fPIC -D _GNU_SOURCE -O0 -ldl -shared recyclix.c -o $@.so
-	strip $@.so
-	chmod -x $@.so
+cupsgetpass.so:
+	gcc $(CCFLAGS) -s -x c $(basename $@).c -fPIC -shared -o $@
+	strip $@
+	chmod -x $@
 
-cupsgetpass:
-	gcc $(CCFLAGS) -s -x c $@.c -fPIC -shared -o $@.so
-	strip $@.so
-	chmod -x $@.so
+xdev.so:
+	gcc -D _GNU_SOURCE -fPIC -O0 -ldl -shared $(basename $@).c -o $@
+	strip $@
+	chmod -x $@
 
-xdev:
-	gcc -D _GNU_SOURCE -fPIC -O0 -ldl -shared $@.c -o $@.so
-	strip $@.so
-	chmod -x $@.so
+ip_dscp.so:
+	gcc $(CCFLAGS) $(basename $@).c -fPIC -shared -ldl -D_GNU_SOURCE -o $@
+	strip $@
+	chmod 0644 $@
 
-ip_dscp:
-	gcc $(CCFLAGS) $@.c -fPIC -shared -ldl -D_GNU_SOURCE -o $@.so
-	strip $@.so
-	chmod 0644 $@.so
+uds_chmod.so:
+	gcc $(CCFLAGS) $(basename $@).c -fPIC -shared -ldl -D_GNU_SOURCE -o $@
+	strip $@
+	chmod 0644 $@
 
-uds_chmod:
-	gcc $(CCFLAGS) $@.c -fPIC -shared -ldl -D_GNU_SOURCE -o $@.so
-	strip $@.so
-	chmod 0644 $@.so
+nofail_setfacl.so:
+	gcc $(CCFLAGS) -D_GNU_SOURCE -shared -fPIC $(basename $@).c -o $@
+	strip $@
+	chmod -x $@
 
-nofail_setfacl:
-	gcc $(CCFLAGS) -D_GNU_SOURCE -shared -fPIC $@.c -o $@.so
-	strip $@.so
-	chmod -x $@.so
+ignore_read_flock.so:
+	gcc $(CCFLAGS) -ldl -D_GNU_SOURCE -shared -fPIC $(basename $@).c -o $@
+	strip $@
+	chmod -x $@
 
-ignore_read_flock:
-	gcc $(CCFLAGS) -ldl -D_GNU_SOURCE -shared -fPIC $@.c -o $@.so
-	strip $@.so
-	chmod -x $@.so
+openhelper.so:
+	gcc $(CCFLAGS) -ldl -D_GNU_SOURCE -shared -fPIC $(basename $@).c -o $@
+	strip $@
+	chmod -x $@
 
-openhelper:
-	gcc $(CCFLAGS) -ldl -D_GNU_SOURCE -shared -fPIC $@.c -o $@.so
-	strip $@.so
-	chmod -x $@.so
+ld_env_restore.so:
+	gcc $(CCFLAGS) $(basename $@).c -fPIC -shared -ldl -lbsd -D_GNU_SOURCE -o $@
+	chmod -x $@
