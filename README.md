@@ -34,6 +34,10 @@ The following flow chart illustrates its inner working:
 
 <img src="./recyclix-flow.svg" />
 
+### Similar projects
+
+- [libtrash](https://github.com/pete4abw/libtrash)
+
 
 # issues
 Please submit issues via PR to some file `<TITLE>.txt` or `<TITLE>.md` on `issues` branch.
