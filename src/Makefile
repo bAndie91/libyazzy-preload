@@ -1,5 +1,5 @@
 
-all: lnbuf forcebindip getenv pathrewrite recyclix cupsgetpass ip_dscp ld_env_restore
+all: lnbuf.so forcebindip.so getenv.so pathrewrite.so recyclix.so cupsgetpass.so ip_dscp.so ld_env_restore.so connredir.so
 
 
 lnbuf.so:
@@ -33,7 +33,7 @@ recyclix.so:
 	chmod -x $@
 
 cupsgetpass.so:
-	gcc $(CCFLAGS) -s -x c $(basename $@).c -fPIC -shared -o $@
+	gcc $(CCFLAGS) -s -x c $(basename $@).c -ldl -fPIC -shared -o $@
 	strip $@
 	chmod -x $@
 
@@ -69,4 +69,8 @@ openhelper.so:
 
 ld_env_restore.so:
 	gcc $(CCFLAGS) $(basename $@).c -fPIC -shared -ldl -lbsd -D_GNU_SOURCE -o $@
+	chmod -x $@
+
+connredir.so:
+	gcc $(CCFLAGS) $(basename $@).c -D_GNU_SOURCE -ldl -shared -fPIC -o $@
 	chmod -x $@

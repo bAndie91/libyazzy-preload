@@ -6,6 +6,8 @@ USAGE
 	
 	LD_PRELOAD=$PWD/connredir.so CONNREDIR_ORIG_IP=169.254.169.254 CONNREDIR_ORIG_PORT=80 CONNREDIR_TO_IP=127.0.0.1 CONNREDIR_TO_PORT=8080 wget ...
 
+	LD_PRELOAD=$PWD/connredir.so CONNREDIR_ORIG_IP=127.0.0.1 CONNREDIR_ORIG_PORT=25 CONNREDIR_TO=stdout sendmail ...
+
 DESCRIPTION
 
 	This shared library is intended to extend connect(2) standard library function by ip/port override capability, so you control
@@ -16,6 +18,11 @@ DESCRIPTION
 	
 	Leave CONNREDIR_ORIG_PORT unset to override all ports.
 	Leave CONNREDIR_TO_PORT unset to not override the destination port number.
+	
+	If CONNREDIR_TO is set, then it's evaluated before CONNREDIR_TO_IP.
+	Valid values for CONNREDIR_TO: stdout.
+	When CONNREDIR_TO is 'stdout', connredir replaces the socket's FD, which is about to be connected, to the STDOUT, so you can
+	make your program communicate on STDIO instead of INET. Useful when combined with socat(1).
 
 COMPATIBILITY
 
@@ -26,6 +33,7 @@ ENVIRONMENT VARIABLES
 
 	CONNREDIR_ORIG_IP
 	CONNREDIR_ORIG_PORT
+	CONNREDIR_TO
 	CONNREDIR_TO_IP
 	CONNREDIR_TO_PORT
 
@@ -55,6 +63,8 @@ int connect(int sockfd, const struct sockaddr_in *orig_sockaddr, socklen_t addrl
 	char *orig_port_str;
 	in_port_t orig_port = 0;
 	
+	char *redir_to;
+	
 	char *to_ip_str;
 	struct in_addr to_ip;
 	char *to_port_str;
@@ -79,6 +89,23 @@ int connect(int sockfd, const struct sockaddr_in *orig_sockaddr, socklen_t addrl
 	orig_port_str = getenv("CONNREDIR_ORIG_PORT");
 	if(orig_port_str != NULL) orig_port = atoi(orig_port_str);
 	if(orig_port != 0 && orig_port != ntohs(orig_sockaddr->sin_port)) goto stdlib;
+	
+	
+	redir_to = getenv("CONNREDIR_TO");
+	if(redir_to != NULL)
+	{
+		if(strcmp(redir_to, "stdout")==0)
+		{
+			if(dup2(fileno(stdout), sockfd) == -1) { perror("connredir: dup2"); goto stdlib; }
+			fprintf(stderr, "connredir: redirecting %s:%d -> stdout\n", inet_ntoa(orig_sockaddr->sin_addr), ntohs(orig_sockaddr->sin_port));
+			return 0;
+		}
+		else
+		{
+			fprintf(stderr, "connredir: unknown redirection '%s'\n", redir_to);
+			goto stdlib;
+		}
+	}
 	
 	to_ip_str = getenv("CONNREDIR_TO_IP");
 	if(to_ip_str == NULL) goto stdlib;
