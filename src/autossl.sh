@@ -11,7 +11,7 @@ tls_port=${tls_ports[$plain_port]}
 
 if [ -z $tls_port ]
 then
-	unset AUTOSSL_UPGRADE_PORT
+	unset AUTOSSL_UPGRADE_PORTS
 	exec nc -v "$ip" "$plain_port"
 else
 	echo "autossl.sh: opening TLS channel to $ip:$tls_port" >&2
