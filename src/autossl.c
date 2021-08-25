@@ -86,6 +86,7 @@ COMPILE
 #include <dlfcn.h>
 #include <errno.h>
 #include <unistd.h>
+#include <bsd/unistd.h>
 
 void _autossl_ip_parse_error(const char* s, const size_t len)
 {
