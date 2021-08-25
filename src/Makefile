@@ -1,5 +1,5 @@
 
-all: lnbuf.so forcebindip.so getenv.so pathrewrite.so recyclix.so cupsgetpass.so ip_dscp.so ld_env_restore.so connredir.so
+all: lnbuf.so forcebindip.so getenv.so pathrewrite.so recyclix.so cupsgetpass.so ip_dscp.so ld_env_restore.so connredir.so autossl.so
 
 
 lnbuf.so:
@@ -72,5 +72,9 @@ ld_env_restore.so:
 	chmod -x $@
 
 connredir.so:
+	gcc $(CCFLAGS) $(basename $@).c -D_GNU_SOURCE -ldl -shared -fPIC -o $@
+	chmod -x $@
+
+autossl.so:
 	gcc $(CCFLAGS) $(basename $@).c -D_GNU_SOURCE -ldl -shared -fPIC -o $@
 	chmod -x $@

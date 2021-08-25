@@ -1,6 +1,6 @@
 /*
 
-connredir.c
+connredir.so
 
 USAGE
 	
@@ -25,7 +25,7 @@ DESCRIPTION
 	
 	By default, connredir does not cause exception in the caller process in error cases (eg. ip address parse error, invalid port number,
 	closed file descriptor), rather falls back to system's connect(2) call.
-	However if CONNREDIR_ERRNO is set, the it sets errno to that value and returns -1 in the above error cases.
+	However if CONNREDIR_ERRNO is set, it sets errno to that value and returns -1 in the above error cases.
 	You may set CONNREDIR_ERRNO to 5 to report IO Error in such cases.
 
 COMPATIBILITY
