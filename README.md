@@ -1,5 +1,16 @@
 # LD_PRELOAD-able shared libraries for Linux
 
+  * [autossl.so](#autosslso)
+  * [recyclix.so](#recyclixso)
+
+
+## autossl.so
+
+`autossl.so` upgrades plaintext network sockets to SSL/TLS transparently
+for TCP client applications with the help of external program. See
+description and usage docs in the source file.
+
+
 ## recyclix.so
 
 `recyclix.so` is an `LD_PRELOAD`-able shared library intercepting file deletions and
