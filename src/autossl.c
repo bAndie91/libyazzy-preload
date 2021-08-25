@@ -197,7 +197,8 @@ int connect(int sockfd, const struct sockaddr_in *orig_sockaddr, socklen_t addrl
 	}
 	fprintf(stderr, "autossl: redirecting %s:%d -> fd#%d\n", inet_ntoa(orig_sockaddr->sin_addr), ntohs(orig_sockaddr->sin_port), sockpair[0]);
 	
-	/* sockpair[0] will be closed eventually by the caller. */
+	/* the caller closes sockfd only, not sockpair[0], so unused open
+	files may pile up eventually in long running programs. */
 	
 	/* childpid process won't be reaped, so don't be scared on the
 	zombie processes, they will be disappear as the main program exits. */
