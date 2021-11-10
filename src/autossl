@@ -1,0 +1,70 @@
+#!/bin/bash
+
+# This is a helper script, wraps any command and sets up environment for
+# autossl.so.
+# Autossl.so is an LD_PRELOAD-ed library which intercepts network connections
+# and upgrade them to TLS.
+#
+# This helper script provides convenience logic to help you type less when
+# using it with common simple commands, like "wget <URL>". You probably
+# use it only with simple commands anyways, so this convenience logic is
+# opt-out. Turn it off by set AUTOSSL_CONVENIENCE=off in your invoking
+# environment.
+# 
+# As part of the convenience it (1) replaces https url-like command line
+# arguments to http (to let autossl.so intercept the plain connection and
+# upgrade it back to https during the connection) and (2) find domain
+# names in command line arguments and passes appropriate "-servername"
+# parameter to the underlaying openssl command.
+# 
+# Set OPENSSL_EXTRA_ARGS environment variable to pass more parameters to openssl.
+# 
+# It has an embedding port mapping which contains common plain:tls port
+# pairs for a given protocol, but you can extend it by setting splace
+# separated "plain:tls" port number pairs in AUTOSSL_TLS_PORT_MAP env
+# variable.
+# 
+# See autossl.so docs for more info.
+
+
+if [ $# = 0 ]
+then
+	echo "Usage: autossl <COMMAND> [<ARGUMENTS>]" >&2
+	exit -1
+else
+	declare -a args
+	servername=''
+	
+	if [ "$AUTOSSL_CONVENIENCE" = off ]
+	then
+		args=("$@")
+	else
+		for arg in "$@"
+		do
+			if [[ $arg =~ ^https://([^@/]*@)?([^/ :]+) ]]
+			then
+				servername=${BASH_REMATCH[2]}
+			fi
+			if [ "${arg:0:6}" = https: ]
+			then
+				arg=${arg/https:/http:}
+			fi
+			args+=("$arg")
+		done
+		
+		if [ -n "$servername" ]
+		then
+			OPENSSL_EXTRA_ARGS="$OPENSSL_EXTRA_ARGS${OPENSSL_EXTRA_ARGS:+ }-servername $servername"
+			export OPENSSL_EXTRA_ARGS
+		fi
+	fi
+	
+	echo "autossl: run: ${args[@]}" >&2
+	
+	LD_PRELOAD=/usr/lib/yazzy-preload/autossl.so \
+	AUTOSSL_UPGRADE_PORTS="80${AUTOSSL_UPGRADE_PORTS:+:}${AUTOSSL_UPGRADE_PORTS}" \
+	AUTOSSL_TLS_CMD=/srv/bin/autossl-conn \
+	AUTOSSL_TLS_PORT_MAP="21:990 23:992 25:465 80:443 110:995 119:563 143:993 194:994 389:636 $AUTOSSL_TLS_PORT_MAP" \
+	AUTOSSL_ERRNO=5 \
+	exec "${args[@]}"
+fi
