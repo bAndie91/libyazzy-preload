@@ -78,3 +78,7 @@ connredir.so:
 autossl.so:
 	gcc $(CCFLAGS) $(basename $@).c -D_GNU_SOURCE -ldl -lbsd -shared -fPIC -o $@
 	chmod -x $@
+
+xopenhook.so:
+	gcc $(CCFLAGS) $(basename $@).c -D_GNU_SOURCE -ldl -shared -fPIC -o $@
+	chmod -x $@
