@@ -1,81 +1,3 @@
-/*
-
-autossl.so
-
-USAGE
-	
-	LD_PRELOAD=$PWD/autossl.so AUTOSSL_UPGRADE_PORTS="80 8080" AUTOSSL_TLS_CMD=stunnel.sh wget ...
-
-	LD_PRELOAD=$PWD/autossl.so AUTOSSL_UPGRADE_PORT=80 AUTOSSL_UPGRADE_IPS="192.0.2.1 192.0.2.2" AUTOSSL_TLS_CMD=s_client.sh wget ...
-
-DESCRIPTION
-
-	This shared library extends connect(2) standard library function
-	adding SSL/TLS layer on the socket transparently. Doing it by
-	invoking a wrapper command and passing the caller process
-	traffic through its STDIO.
-	
-	On each connect() calls, it checks that the destination port is one
-	of those from AUTOSSL_UPGRADE_PORTS environment variable and the
-	destination IP is one of the IPs in AUTOSSL_UPGRADE_IPS (if it's
-	set). AUTOSSL_UPGRADE_PORTS and AUTOSSL_UPGRADE_IPS are
-	space-delimited list of port numbers and IPs respectively. If you
-	don't know the IP(s) prior, leave AUTOSSL_UPGRADE_IPS unset, then
-	any connection on AUTOSSL_UPGRADE_PORTS ports to any host will be
-	upgraded.
-	
-	If the criteria above are satisfied, autossl.so starts
-	AUTOSSL_TLS_CMD expecting it to connect to the right TLS endpoint.
-	AUTOSSL_TLS_CMD invoked with 2 arguments: the original IP and port
-	the caller process wanted to connect, so it can find out where to
-	open the TLS channel if the caller possibly connects to more than 1
-	endpoints during runtime.
-	
-	In the wrapper command, run stunnel(8) or openssl s_client(1SSL) or
-	other command to open a TLS channel connected to the STDIO, eg.
-	
-	  stunnel -f -c -r mail.example.net:993
-	  
-	  openssl s_client -connect $1:443 -servername example.net -quiet
-	
-	If you dont want to upgrade a particular connection to TLS, simply
-	run something like 'unset AUTOSSL_UPGRADE_PORTS; netcat $1 $2' 
-	
-	Currently the domain name which the caller process wants to connect
-	to is not known, due to the disconnected nature of hostname
-	resolution and socket networking on the level of standard library
-	calls. Therefore the wrapper command has to be creative what to send
-	in SNI to the TLS endpoint. Autossl is not particular recommended to
-	use in processes which connects to many various hosts (eg. web
-	browsers) with little domain name – IP range corelation, because
-	it makes hard for the wrapper command to find out the right SNI for
-	a given IP. A more plausible scenario to have autossl.so upgrade
-	socket connections to a few, 1, 2, or 3 hosts, or to hosts whiches
-	server name is unambiguous by thier IP in order to make correct SNI.
-	
-	By default, autossl does not cause exception in the caller process
-	in error cases (eg. ip address parse error, invalid port number),
-	rather falls back to system's connect(2) call. However if
-	AUTOSSL_ERRNO is set, it sets errno to that value and returns -1 in
-	the above error cases. You may set AUTOSSL_ERRNO to 5 to report
-	IOError in such cases.
-
-COMPATIBILITY
-
-	inet sockets (ipv4)
-	SOCK_STREAM (tcp)
-
-ENVIRONMENT VARIABLES
-
-	AUTOSSL_UPGRADE_PORTS
-	AUTOSSL_UPGRADE_IPS
-	AUTOSSL_TLS_CMD
-	AUTOSSL_ERRNO
-
-COMPILE
-
-	gcc -D_GNU_SOURCE -ldl -shared -fPIC -o autossl.so autossl.c
-*/
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -196,7 +118,9 @@ int connect(int sockfd, const struct sockaddr_in *orig_sockaddr, socklen_t addrl
 		close(sockpair[0]);
 		goto error_case;
 	}
-	fprintf(stderr, "autossl: redirecting %s:%d -> fd#%d\n", inet_ntoa(orig_sockaddr->sin_addr), ntohs(orig_sockaddr->sin_port), sockpair[0]);
+	
+	if(!getenv("AUTOSSL_SILENT"))
+		fprintf(stderr, "autossl: redirecting %s:%d -> fd#%d\n", inet_ntoa(orig_sockaddr->sin_addr), ntohs(orig_sockaddr->sin_port), sockpair[0]);
 	
 	/* the caller closes sockfd only, not sockpair[0], so unused open
 	files may pile up eventually in long running programs. */
