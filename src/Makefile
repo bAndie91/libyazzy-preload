@@ -1,6 +1,5 @@
 
 all: \
-  autossl.so \
   connredir.so \
   cupsgetpass.so \
   forcebindip.so \
@@ -14,40 +13,6 @@ all: \
 
 .PHONY: all
 
-
-autossl.so:
-	gcc $(CCFLAGS) autossl.c -D_GNU_SOURCE -ldl -lbsd -shared -fPIC -o $@
-	strip $@
-	chmod -x $@
-
-install-autossl: /usr/tool/autossl /usr/tool/autossl-conn /usr/lib/tool/preload/autossl.so
-.PHONY: install-autossl
-/usr/tool/autossl: autossl
-	install $< $@
-/usr/tool/autossl-conn: autossl-conn
-	install $< $@
-/usr/lib/tool/preload/autossl.so: autossl.so | /usr/lib/tool/preload
-	install $< $@
-/usr/lib/tool/preload:
-	mkdir -p $@
-/usr/share/man/man8/autossl.1.xz: autossl.pod
-	pod2man --name=autossl --section 1 --utf8 $< | xz > $@.tmp && \
-	mv $@.tmp $@
-/usr/share/man/man8/autossl.so.8.xz: autossl.so.pod
-	pod2man --name=autossl.so --section 8 --utf8 $< | xz > $@.tmp && \
-	mv $@.tmp $@
-define rid
-	$(shell [ ! -e ] || rm)
-endef
-uninstall-autossl:
-	$(rid /usr/tool/autossl)
-	$(rid /usr/tool/autossl-conn)
-	$(rid /usr/lib/tool/preload/autossl.so)
-	$(rid /usr/share/man/man8/autossl.1.xz.tmp)
-	$(rid /usr/share/man/man8/autossl.1.xz)
-	$(rid /usr/share/man/man8/autossl.so.8.xz.tmp)
-	$(rid /usr/share/man/man8/autossl.so.8.xz)
-.PHONY: uninstall-autossl
 
 connredir.so:
 	gcc $(CCFLAGS) connredir.c -D_GNU_SOURCE -ldl -shared -fPIC -o $@
@@ -63,6 +28,9 @@ forcebindip.so:
 	gcc $(CCFLAGS) -Wall -fPIC -D _GNU_SOURCE -shared forcebindip.c -o $@
 	strip $@
 	chmod -x $@
+
+forcebindiface.so: forcebindiface.c
+	gcc -nostartfiles -fpic -shared $< -o $@ -ldl -D_GNU_SOURCE
 
 getenv.so:
 	gcc $(CCFLAGS) -Wall -fPIC -D _GNU_SOURCE -O0 -ldl -shared getenv.c -o $@
