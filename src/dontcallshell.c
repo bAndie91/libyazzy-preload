@@ -127,6 +127,7 @@ int execle(const char *cmd, const char *arg, ...)
 // fexecve(...
 
 
+// TODO: make it intercept system(3) too:
 /*
 int __posix_spawn (&pid, SHELL_PATH, 0, &spawn_attr,
 		       (char *const[]){ (char *) SHELL_NAME,
