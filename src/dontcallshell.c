@@ -126,12 +126,15 @@ int execle(const char *cmd, const char *arg, ...)
 
 // fexecve(...
 
+#include <spawn.h>
 
-// TODO: make it intercept system(3) too:
-/*
-int __posix_spawn (&pid, SHELL_PATH, 0, &spawn_attr,
-		       (char *const[]){ (char *) SHELL_NAME,
-					(char *) "-c",
-					(char *) line, NULL },
-		       __environ);
-*/
+// FIXME override private functions?!
+int __posix_spawn (pid_t *pid, const char *path,
+	const posix_spawn_file_actions_t *file_actions,
+	const posix_spawnattr_t *attrp, char *const argv[],
+	char *const envp[])
+{
+	DEBUG_fprintf(stderr, "__posix_spawn %s [%s %s %s ...]\n", path, argv[0], argv[1], argv[2]);
+	int (*real_func)(pid_t *, const char *,	const posix_spawn_file_actions_t *, const posix_spawnattr_t *, char *const [], char *const []) = dlsym(RTLD_NEXT, "__posix_spawn");
+	return real_func(pid, dontcallshell_replace_exec_path(path, argv), file_actions, attrp, argv, envp);
+}
