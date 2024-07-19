@@ -10,16 +10,28 @@
 
 #define EQ(a, b) (strcmp((a), (b))==0)
 
+#ifdef DEBUG
+#define DEBUG_fprintf fprintf
+#else
+#define DEBUG_fprintf noop
+void noop(void*, ...) { }
+#endif
+
 extern char **environ;
 
-/* the following macro mimics glibc converting variadic arguments into an array */
+// glibc seems to use INT_MAX for this but i get SIGSEGV if try to allocate an array that big
+#define ARGV_MAX_LEN 65536
+
+/* the following macros mimic glibc converting variadic arguments into an array */
 
 #define _BUILD_ARGV() \
-	const char *argv[INT_MAX]; \
+	const char *argv[ARGV_MAX_LEN]; \
 	int argv_idx; \
-	for(argv_idx = 0;; argv_idx++) { \
-		if(argv_idx >= INT_MAX) { va_end(argv_ap); errno = E2BIG; return -1; } \
+	argv[0] = arg; \
+	for(argv_idx = 1; ; argv_idx++) { \
+		if(argv_idx >= ARGV_MAX_LEN) { va_end(argv_ap); errno = E2BIG; return -1; } \
 		argv[argv_idx] = va_arg(argv_ap, char*); \
+		DEBUG_fprintf(stderr, "argv[%u] = %s\n", argv_idx, argv[argv_idx]); \
 		if(argv[argv_idx] == NULL) break; \
 	}
 
@@ -28,77 +40,85 @@ extern char **environ;
 	const char *next_arg = va_arg(argv_ap, char*); \
 	if(next_arg != NULL) envp = next_arg;
 
-#define BUILD_ARGV(start_arg) \
+// last fixed argument's name must be "arg"
+#define BUILD_ARGV() \
 	va_list argv_ap; \
-	va_start(argv_ap, start_arg); \
+	va_start(argv_ap, arg); \
 	_BUILD_ARGV(); \
 	va_end(argv_ap)
 
-#define BUILD_ARGV_AND_ENVP(start_arg) \
+// last fixed argument's name must be "arg"
+#define BUILD_ARGV_AND_ENVP() \
 	va_list argv_ap; \
-	va_start(argv_ap, start_arg); \
+	va_start(argv_ap, arg); \
 	_BUILD_ARGV(); \
 	_BUILD_ENVP(); \
 	va_end(argv_ap)
 
 
 
-const char * dontcallshell_replace_exec_path(const char *name, char *const argv[])
+const char * dontcallshell_replace_exec_path(const char *cmd, char *const argv[])
 {
-	fprintf(stderr, "exec*: %s\n", name);
-	fprintf(stderr, "arg 0 %s\n", argv[0]);
-	fprintf(stderr, "arg 1 %s\n", argv[1]);
-	fprintf(stderr, "arg 2 %s\n", argv[2]);
-	if(argv[0] != NULL && argv[1] != NULL && strcmp(argv[1], "-c")
-	   && ( EQ(name, "/bin/sh") || EQ(name, "/bin/bash") || EQ(name, "sh") || EQ(name, "bash") )
+	DEBUG_fprintf(stderr, "exec*: %s [%s %s %s ...]\n", cmd, argv[0], argv[1], argv[2]);
+	if(argv[0] != NULL && argv[1] != NULL && EQ(argv[1], "-c")
+	   && ( EQ(cmd, "/bin/sh") || EQ(cmd, "/bin/bash") || EQ(cmd, "sh") || EQ(cmd, "bash") )
 	  )
 	{
 		return "/usr/tool/notashell";
 	}
-	return name;
+	return cmd;
 }
 
 
-int execv(const char *path, char *const argv[])
+int execv(const char *cmd, char *const argv[])
 {
-	int (*real_execv)(const char *path, char *const argv[]) = dlsym(RTLD_NEXT, "execv");
-	return real_execv(dontcallshell_replace_exec_path(path, argv), argv);
+	DEBUG_fprintf(stderr, "execve %s [%s %s %s ...]\n", cmd, argv[0], argv[1], argv[2]);
+	int (*real_execv)(const char *cmd, char *const argv[]) = dlsym(RTLD_NEXT, "execv");
+	return real_execv(dontcallshell_replace_exec_path(cmd, argv), argv);
 }
 
-int execvp(const char *file, char *const argv[])
+int execvp(const char *cmd, char *const argv[])
 {
-	int (*real_execvp)(const char *file, char *const argv[]) = dlsym(RTLD_NEXT, "execvp");
-	return real_execvp(dontcallshell_replace_exec_path(file, argv), argv);
+	DEBUG_fprintf(stderr, "execvp %s [%s %s %s ...]\n", cmd, argv[0], argv[1], argv[2]);
+	int (*real_execvp)(const char *cmd, char *const argv[]) = dlsym(RTLD_NEXT, "execvp");
+	return real_execvp(dontcallshell_replace_exec_path(cmd, argv), argv);
 }
 
-int execve(const char *path, char *const argv[], char *const envp[])
+int execve(const char *cmd, char *const argv[], char *const envp[])
 {
-	int (*real_execve)(const char *path, char *const argv[], char *const envp[]) = dlsym(RTLD_NEXT, "execve");
-	return real_execve(dontcallshell_replace_exec_path(path, argv), argv, envp);
+	DEBUG_fprintf(stderr, "execve %s [%s %s %s ...] [%s ...]\n", cmd, argv[0], argv[1], argv[2], envp[0]);
+	int (*real_execve)(const char *cmd, char *const argv[], char *const envp[]) = dlsym(RTLD_NEXT, "execve");
+	return real_execve(dontcallshell_replace_exec_path(cmd, argv), argv, envp);
 }
 
-int execvpe(const char *file, char *const argv[], char *const envp[])
+int execvpe(const char *cmd, char *const argv[], char *const envp[])
 {
-	int (*real_execvpe)(const char *file, char *const argv[], char *const envp[]) = dlsym(RTLD_NEXT, "execvpe");
-	return real_execvpe(dontcallshell_replace_exec_path(file, argv), argv, envp);
+	DEBUG_fprintf(stderr, "execvpe %s [%s %s %s ...] [%s ...]\n", cmd, argv[0], argv[1], argv[2], envp[0]);
+	int (*real_execvpe)(const char *cmd, char *const argv[], char *const envp[]) = dlsym(RTLD_NEXT, "execvpe");
+	return real_execvpe(dontcallshell_replace_exec_path(cmd, argv), argv, envp);
 }
 
-int execl(const char *path, const char *arg, ...)
+/* the following variadic functions calls to the above functions which are not variadic and do the replacements themself */
+
+int execl(const char *cmd, const char *arg, ...)
 {
-	BUILD_ARGV(arg);
-	return execve(dontcallshell_replace_exec_path(path, argv), argv, environ);
+	DEBUG_fprintf(stderr, "execl %s %s ...\n", cmd, arg);
+	BUILD_ARGV();
+	return execve(cmd, argv, environ);
 }
 
-int execlp(const char *file, const char *arg, ...)
+int execlp(const char *cmd, const char *arg, ...)
 {
-	BUILD_ARGV(arg);
-	return execvpe(dontcallshell_replace_exec_path(file, argv), argv, environ);
+	DEBUG_fprintf(stderr, "execlp %s %s ...\n", cmd, arg);
+	BUILD_ARGV();
+	return execvpe(cmd, argv, environ);
 }
 
-int execle(const char *path, const char *arg, ...)
+int execle(const char *cmd, const char *arg, ...)
 {
-	BUILD_ARGV_AND_ENVP(arg);
-	return execve(dontcallshell_replace_exec_path(path, argv), argv, envp);
+	DEBUG_fprintf(stderr, "execle %s %s ...\n", cmd, arg);
+	BUILD_ARGV_AND_ENVP();
+	return execve(cmd, argv, envp);
 }
 
 
@@ -107,8 +127,10 @@ int execle(const char *path, const char *arg, ...)
 // fexecve(...
 
 
+/*
 int __posix_spawn (&pid, SHELL_PATH, 0, &spawn_attr,
 		       (char *const[]){ (char *) SHELL_NAME,
 					(char *) "-c",
 					(char *) line, NULL },
 		       __environ);
+*/
