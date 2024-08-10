@@ -96,3 +96,9 @@ xopenhook.so:
 	gcc $(CCFLAGS) xopenhook.c -D_GNU_SOURCE -ldl -lXv -shared -fPIC -o $@
 	strip $@
 	chmod -x $@
+
+psai.so: proxy-socket-address-info.c
+	$(CC) -D_GNU_SOURCE -nostartfiles -shared -fpic -fPIC \
+		-fvisibility=hidden $(CCFLAGS) \
+		$< -o $@ \
+		-ldl -Wl,-z,relro,-z,now -Wl,-z,noexecstack $(LDFLAGS)
