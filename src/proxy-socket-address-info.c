@@ -140,19 +140,28 @@ update_socket_addr(struct sockaddr * socket_addr, char * ipaddr_str, char * port
 }
 
 bool_t
-change_socket_address_in_msg(struct msghdr * msg)
+save_socket_address(struct sockaddr * socket_addr, char * dest_str)
+{
+	uint16_t port;
+	char ipaddr[IPADDR_MAX_LEN+1];
+	
+	if(! extract_ip_port(socket_addr, (char*)&ipaddr, &port)) return FALSE;
+	snprintf(dest_str, SOCKET_ADDR_MAX_LEN+1, "%s,%u", ipaddr, port);
+	return TRUE;
+}
+
+bool_t
+change_socket_address(struct sockaddr * socket_addr)
 {
 	uint16_t orig_port;
-	char orig_ipaddr[IPADDR_MAX_LEN+1];
+	char orig_ip_port[SOCKET_ADDR_MAX_LEN+1];
 	char linkname_buf[PATH_MAX_LEN+1];
 	char linktarg_buf[SOCKET_ADDR_MAX_LEN+1];
 	ssize_t nbytes;
 	char * portnum_str;
 	
-	if(! msg) return FALSE;
-	if(! extract_ip_port(msg->msg_name, &orig_ipaddr, &orig_port)) return FALSE;
-	
-	snprintf(linkname_buf, PATH_MAX_LEN, "%s/%s,%u", shm_path(), orig_ipaddr, orig_port);
+	if(! save_socket_address(socket_addr, orig_ip_port)) return FALSE;
+	snprintf(linkname_buf, PATH_MAX_LEN+1, "%s/%s", shm_path(), orig_ip_port);
 	DEBUG("socket address lookup: %s", linkname_buf);
 	
 	nbytes = readlink(linkname_buf, linktarg_buf, SOCKET_ADDR_MAX_LEN+1);
@@ -169,14 +178,59 @@ change_socket_address_in_msg(struct msghdr * msg)
 	portnum_str = strrchr(linktarg_buf, ',');
 	if(portnum_str) { portnum_str[0] = '\0'; portnum_str++; }
 	
-	return update_socket_addr((struct sockaddr*)msg->msg_name, linktarg_buf, portnum_str);
+	return update_socket_addr(socket_addr, linktarg_buf, portnum_str);
 }
+
+bool_t
+set_proxy_address_info(struct sockaddr * socket_addr, char * target_str)
+{
+	char sock_addr_str[SOCKET_ADDR_MAX_LEN+1];
+	char linkname_buf[PATH_MAX_LEN+1];
+	int symlink_ret;
+	
+	if(! save_socket_address(socket_addr, sock_addr_str)) return FALSE;
+	snprintf(linkname_buf, PATH_MAX_LEN+1, "%s/%s", shm_path(), sock_addr_str);
+	
+	unlink(linkname_buf);
+	symlink_ret = symlink(target_str, linkname_buf);
+	if(symlink_ret == -1) warn("symlink: %s", linkname_buf);
+	
+	return symlink_ret == 0 ? TRUE : FALSE;
+}
+
+void
+unset_proxy_address_info(char * ip_port)
+{
+	char linkname_buf[PATH_MAX_LEN+1];
+	snprintf(linkname_buf, PATH_MAX_LEN+1, "%s/%s", shm_path(), ip_port);
+	unlink(linkname_buf);
+}
+
 
 ssize_t
 recvmsg(int sockfd, struct msghdr *msg, int flags)
 {
 	ssize_t recvmsg_ret;
+	char orig_sock_addr_str[SOCKET_ADDR_MAX_LEN+1];
+	
 	recvmsg_ret = sys_recvmsg(sockfd, msg, flags);
-	change_socket_address_in_msg(msg);
+	if(msg)
+	{
+		save_socket_address(msg->msg_name, orig_sock_addr_str);
+		change_socket_address(msg->msg_name);
+		set_proxy_address_info(msg->msg_name, orig_sock_addr_str);
+	}
 	return recvmsg_ret;
+}
+
+ssize_t
+sendmsg(int sockfd, const struct msghdr *msg, int flags)
+{
+	ssize_t sendmsg_ret;
+	sendmsg_ret = sys_sendmsg(sockfd, msg, flags);
+	if(msg)
+	{
+		change_socket_address(msg->msg_name);
+	}
+	return sendmsg_ret;
 }
