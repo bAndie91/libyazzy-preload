@@ -97,8 +97,8 @@ xopenhook.so:
 	strip $@
 	chmod -x $@
 
-psai.so: proxy-socket-address-info.c
+oobpsai.so: oob-proxy-socket-address-info.c oob-proxy-socket-address-info-preload.c
 	$(CC) -D_GNU_SOURCE -nostartfiles -shared -fpic -fPIC \
 		-fvisibility=hidden $(CCFLAGS) \
-		$< -o $@ \
+		$^ -o $@ \
 		-ldl -Wl,-z,relro,-z,now -Wl,-z,noexecstack $(LDFLAGS)

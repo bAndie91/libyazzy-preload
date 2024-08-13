@@ -7,17 +7,17 @@ of the internet traffic received by the target programm.
 
 IP and port are changed in the msghdr structure returned by recvmsg(2).
 That to which IP and port should be changed is determined by symlinks found in the directory
-pointed by PSAI_SHM_PATH environment, /run/shm/psai by default.
-Original IP address IP1 and port number PORT1 pair is searched on the path "PSAI_SHM_PATH/IP1,PORT1",
+pointed by OOBPSAI_SHM_PATH environment, /run/shm/oobpsai by default.
+Original IP address IP1 and port number PORT1 pair is searched on the path "OOBPSAI_SHM_PATH/IP1,PORT1",
 then if found, take the symlink target in format IP2,PORT2 and get the fake IP and port from it.
 
 This is useful in situations where you put a reverse proxy in front of your network application (server),
 which proxy terminates the remote client's network connection, thus hiding the real client's IP from the server.
-Use this lib on the proxy to manage a PSAI (proxy socket address info) table (ie. symlinks in SHM)
+Use this lib on the proxy to manage a OOBPSAI (out-of-band proxy socket address info) table (ie. symlinks in SHM)
 for the traffic sent to the server;
-and use it on the server program to make it know the real client IPs from the PSAI table.
+and use it on the server program to make it know the real client IPs from the OOBPSAI table.
 
-It's a good idea to point PSAI_SHM_PATH to a memory-backed filesystem to prevent high I/O,
+It's a good idea to point OOBPSAI_SHM_PATH to a memory-backed filesystem to prevent high I/O,
 but I don't know hard reason against putting it on a network-shared filesystem - this way the
 proxy and the server probably don't even need to be on the same machine.
 
@@ -25,29 +25,7 @@ IP address and port numbers are separated not by the well-established colon ":" 
 in order not to confuse IPv6 addresses.
 */
 
-#include <dlfcn.h>
-#include <errno.h>
-#include <err.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <string.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <arpa/inet.h>
-
-
-#ifdef DEBUG
-#undef DEBUG
-#define DEBUG(fmt, ...) fprintf(stderr, fmt "\n", __VA_ARGS__)
-#else
-#define DEBUG(...) 0
-#endif
-
-typedef int bool_t;
-#define TRUE 1
-#define FALSE 0
-
+#include "oob-proxy-socket-address-info.h"
 
 static ssize_t (*sys_recvmsg)(int sockfd, struct msghdr *msg, int flags);
 static ssize_t (*sys_sendmsg)(int sockfd, const struct msghdr *msg, int flags);
@@ -72,48 +50,6 @@ void _init(void)
   sys_getpeername = dlsym(RTLD_NEXT, "getpeername");
 }
 
-#define DFLT_SHM_PATH "/run/shm/psai"
-#define SHM_PATH_MAX_LEN 64
-#define IPADDR_MAX_LEN INET6_ADDRSTRLEN
-#define PORTNUM_MAX_LEN 5
-#define SOCKET_ADDR_MAX_LEN (IPADDR_MAX_LEN + 1 + PORTNUM_MAX_LEN)
-#define PATH_MAX_LEN (SHM_PATH_MAX_LEN + 1 + SOCKET_ADDR_MAX_LEN)
-
-static char * shm_path()
-{
-	char * path = getenv("PSAI_SHM_PATH");
-	if(path == NULL) return DFLT_SHM_PATH;
-	if(strlen(path) > SHM_PATH_MAX_LEN)
-	{
-		warnx("PSAI_SHM_PATH length > %u", SHM_PATH_MAX_LEN);
-		abort();
-	}
-	return path;
-}
-
-bool_t
-extract_ip_port(struct sockaddr * socket_addr, char * out_ipaddr, uint16_t * out_port)
-{
-	in_port_t * port_p;
-	void * addr_p;
-	
-	if(socket_addr->sa_family == AF_INET)
-	{
-		port_p = &((struct sockaddr_in*)socket_addr)->sin_port;
-		addr_p = &((struct sockaddr_in*)socket_addr)->sin_addr;
-	}
-	else if(socket_addr->sa_family == AF_INET6)
-	{
-		port_p = &((struct sockaddr_in6*)socket_addr)->sin6_port;
-		addr_p = &((struct sockaddr_in6*)socket_addr)->sin6_addr;
-	}
-	else return FALSE;
-	
-	if(out_port) *out_port = ntohs(*port_p);
-	if(!out_ipaddr) return TRUE;
-	if(inet_ntop(socket_addr->sa_family, addr_p, out_ipaddr, IPADDR_MAX_LEN) == NULL) return FALSE;
-	return TRUE;
-}
 
 bool_t
 update_socket_addr(struct sockaddr * socket_addr, char * ipaddr_str, char * portnum_str)
@@ -137,17 +73,6 @@ update_socket_addr(struct sockaddr * socket_addr, char * ipaddr_str, char * port
 	if(portnum_str) *port_p = htons(atoi(portnum_str));
 	ret = inet_pton(socket_addr->sa_family, ipaddr_str, addr_p);
 	return ret == 1 ? TRUE : FALSE;
-}
-
-bool_t
-save_socket_address(struct sockaddr * socket_addr, char * dest_str)
-{
-	uint16_t port;
-	char ipaddr[IPADDR_MAX_LEN+1];
-	
-	if(! extract_ip_port(socket_addr, (char*)&ipaddr, &port)) return FALSE;
-	snprintf(dest_str, SOCKET_ADDR_MAX_LEN+1, "%s,%u", ipaddr, port);
-	return TRUE;
 }
 
 bool_t
@@ -179,31 +104,6 @@ change_socket_address(struct sockaddr * socket_addr)
 	if(portnum_str) { portnum_str[0] = '\0'; portnum_str++; }
 	
 	return update_socket_addr(socket_addr, linktarg_buf, portnum_str);
-}
-
-bool_t
-set_proxy_address_info(struct sockaddr * socket_addr, char * target_str)
-{
-	char sock_addr_str[SOCKET_ADDR_MAX_LEN+1];
-	char linkname_buf[PATH_MAX_LEN+1];
-	int symlink_ret;
-	
-	if(! save_socket_address(socket_addr, sock_addr_str)) return FALSE;
-	snprintf(linkname_buf, PATH_MAX_LEN+1, "%s/%s", shm_path(), sock_addr_str);
-	
-	unlink(linkname_buf);
-	symlink_ret = symlink(target_str, linkname_buf);
-	if(symlink_ret == -1) warn("symlink: %s", linkname_buf);
-	
-	return symlink_ret == 0 ? TRUE : FALSE;
-}
-
-void
-unset_proxy_address_info(char * ip_port)
-{
-	char linkname_buf[PATH_MAX_LEN+1];
-	snprintf(linkname_buf, PATH_MAX_LEN+1, "%s/%s", shm_path(), ip_port);
-	unlink(linkname_buf);
 }
 
 
